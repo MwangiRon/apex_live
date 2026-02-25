@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "F1 Telemetry Data",
+  "description": "Standard telemetry packet format shared across all system components",
+  "type": "object",
+  "required": ["timestamp", "device_id", "position", "motion"],
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp"
+    },
+    "device_id": {
+      "type": "string",
+      "description": "Unique identifier for the ESP32 device",
+      "examples": ["esp32-car-01", "esp32-car-02"]
+    },
+    "position": {
+      "type": "object",
+      "required": ["latitude", "longitude"],
+      "properties": {
+        "latitude": {
+          "type": "number",
+          "minimum": -90,
+          "maximum": 90
+        },
+        "longitude": {
+          "type": "number",
+          "minimum": -180,
+          "maximum": 180
+        },
+        "altitude": {
+          "type": "number",
+          "description": "Meters above sea level"
+        },
+        "normalized_x": {
+          "type": "number",
+          "description": "Track-relative X coordinate (0-1000)"
+        },
+        "normalized_y": {
+          "type": "number",
+          "description": "Track-relative Y coordinate (0-1000)"
+        }
+      }
+    },
+    "motion": {
+      "type": "object",
+      "properties": {
+        "speed": {
+          "type": "number",
+          "description": "Speed in km/h"
+        },
+        "acceleration_x": {
+          "type": "number",
+          "description": "Lateral G-force"
+        },
+        "acceleration_y": {
+          "type": "number",
+          "description": "Longitudinal G-force"
+        },
+        "acceleration_z": {
+          "type": "number",
+          "description": "Vertical G-force"
+        },
+        "heading": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 360,
+          "description": "Compass heading in degrees"
+        }
+      }
+    },
+    "sensors": {
+      "type": "object",
+      "properties": {
+        "temperature_engine": {
+          "type": "number",
+          "description": "Engine temperature in Celsius"
+        },
+        "temperature_ambient": {
+          "type": "number",
+          "description": "Ambient temperature in Celsius"
+        }
+      }
+    }
+  }
+}
