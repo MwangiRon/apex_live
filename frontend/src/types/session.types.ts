@@ -1,18 +1,22 @@
-export enum FlagType {
-  GREEN = 'green',
-  YELLOW = 'yellow',
-  DOUBLE_YELLOW = 'double_yellow',
-  RED = 'red',
-  BLUE = 'blue',
-  BLACK = 'black',
-  CHEQUERED = 'chequered',
-}
+export const FlagType = {
+  GREEN: 'green',
+  YELLOW: 'yellow',
+  DOUBLE_YELLOW: 'double_yellow',
+  RED: 'red',
+  BLUE: 'blue',
+  BLACK: 'black',
+  CHEQUERED: 'chequered',
+} as const;
 
-export enum TrackSector {
-  SECTOR_1 = 'sector_1',
-  SECTOR_2 = 'sector_2',
-  SECTOR_3 = 'sector_3',
-}
+export type FlagType = typeof FlagType[keyof typeof FlagType];
+
+export const TrackSector = {
+  SECTOR_1: 'sector_1',
+  SECTOR_2: 'sector_2',
+  SECTOR_3: 'sector_3',
+} as const;
+
+export type TrackSector = typeof TrackSector[keyof typeof TrackSector];
 
 export interface FlagState {
   flag_type: FlagType;

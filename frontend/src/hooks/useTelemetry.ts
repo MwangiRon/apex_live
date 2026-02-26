@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { TelemetryData } from '../types/telemetry.types';
-import { FlagState, SessionState } from '../types/session.types';
+import type { TelemetryData } from '../types/telemetry.types';
+import type { FlagState, SessionState } from '../types/session.types';
 import { wsService } from '../services/websocket-service';
 import { api } from '../services/api-client';
 
