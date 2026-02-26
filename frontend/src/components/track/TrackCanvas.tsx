@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { TelemetryData } from '../../types/telemetry.types';
-import { FlagState, FlagType, TrackSector } from '../../types/session.types';
+import type { TelemetryData } from '../../types/telemetry.types';
+import type { FlagState } from '../../types/session.types';
+import { FlagType, TrackSector } from '../../types/session.types';
 
 interface TrackCanvasProps {
   telemetryData: TelemetryData[];
@@ -17,7 +18,7 @@ export function TrackCanvas({ telemetryData, latestData, currentFlag, carColors 
   useEffect(() => {
     if (!currentFlag) return;
 
-    let interval: NodeJS.Timeout;
+    let interval: ReturnType<typeof setTimeout>;
 
     if (currentFlag.flag_type === FlagType.YELLOW || 
         currentFlag.flag_type === FlagType.DOUBLE_YELLOW ||

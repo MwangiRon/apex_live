@@ -1,4 +1,4 @@
-import type { TelemetryData } from '../types/telemetry.types';
+
 import type { WebSocketMessage } from '../types/session.types';
 
 const WS_URL = import.meta.env.VITE_WS_URL || 'ws://localhost:8000/ws/telemetry';

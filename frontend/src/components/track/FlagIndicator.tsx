@@ -1,6 +1,6 @@
 import type { FlagState } from '../../types/session.types';
 import { FlagType } from '../../types/session.types';
-import type { WebSocketMessage } from '../types/session.types';
+
 import { AlertCircle, Flag, X, CheckCircle } from 'lucide-react';
 
 interface FlagIndicatorProps {

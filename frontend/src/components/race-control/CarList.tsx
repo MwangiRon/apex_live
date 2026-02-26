@@ -1,5 +1,5 @@
-import { TelemetryData } from '../../types/telemetry.types';
-import { Car } from '../../types/car.types';
+import type { TelemetryData } from '../../types/telemetry.types';
+import type { Car } from '../../types/car.types';
 import { Activity } from 'lucide-react';
 
 interface CarListProps {
