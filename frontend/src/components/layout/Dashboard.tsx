@@ -9,8 +9,8 @@ import { CarList } from '../race-control/CarList';
 import { useTelemetry } from '../../hooks/useTelemetry';
 import { useTrackInfo } from '../../hooks/useTrackInfo';
 import { Header } from './Header';
-import { Car } from '../../types/car.types';
-import { TelemetryData } from '../../types/telemetry.types';
+import type { Car } from '../../types/car.types';
+import type { TelemetryData } from '../../types/telemetry.types';
 
 export function Dashboard() {
   const { telemetryHistory, latestData, isConnected, currentFlag, sessionState } = useTelemetry(200);
