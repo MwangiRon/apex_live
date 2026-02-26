@@ -1,4 +1,5 @@
 from typing import Tuple
+import math
 
 
 class CoordinateNormalizer:
@@ -44,7 +45,6 @@ class CoordinateNormalizer:
         lat_offset_meters = (latitude - self.center_lat) * self.meters_per_degree_lat
         
         # Longitude conversion depends on latitude (cos correction)
-        import math
         meters_per_degree_lon = self.meters_per_degree_lat * math.cos(math.radians(self.center_lat))
         lon_offset_meters = (longitude - self.center_lon) * meters_per_degree_lon
         
@@ -59,10 +59,15 @@ class CoordinateNormalizer:
         return normalized_x, normalized_y
 
 
-# Example track: Silverstone Circuit approximate center
-silverstone_normalizer = CoordinateNormalizer(
-    track_center_lat=52.0786,
-    track_center_lon=-1.0169,
-    track_width_meters=2000.0,
-    track_height_meters=2000.0
+# Red Bull Ring (Spielberg, Austria)
+# Track length: 4.318 km
+# Track center coordinates (approximate middle of the circuit)
+redbull_ring_normalizer = CoordinateNormalizer(
+    track_center_lat=47.2197,  # Red Bull Ring center latitude
+    track_center_lon=14.7647,  # Red Bull Ring center longitude
+    track_width_meters=1500.0,  # Track spans ~1.5km east-west
+    track_height_meters=2000.0  # Track spans ~2km north-south
 )
+
+# You can add more tracks here in the future
+# Example: Monaco, Monza, Spa, etc.

@@ -3,7 +3,7 @@ from typing import List
 from datetime import datetime
 
 from app.models import TelemetryData
-from app.logic import CoordinateNormalizer, silverstone_normalizer
+from app.logic.coordinate_normalizer import CoordinateNormalizer, redbull_ring_normalizer
 
 router = APIRouter(prefix="/api/v1", tags=["telemetry"])
 
@@ -18,7 +18,8 @@ async def root():
         "status": "online",
         "service": "F1 Telemetry API",
         "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat()
+        "timestamp": datetime.utcnow().isoformat(),
+        "track": "Red Bull Ring, Spielberg, Austria"
     }
 
 
@@ -26,11 +27,11 @@ async def root():
 async def receive_telemetry(data: TelemetryData):
     """
     Receive telemetry data from ESP32 devices.
-    Auto-normalizes coordinates if not already provided.
+    Auto-normalizes coordinates using Red Bull Ring reference.
     """
     # If normalized coordinates not provided, calculate them
     if data.position.normalized_x is None or data.position.normalized_y is None:
-        norm_x, norm_y = silverstone_normalizer.normalize(
+        norm_x, norm_y = redbull_ring_normalizer.normalize(
             data.position.latitude,
             data.position.longitude
         )
@@ -64,6 +65,32 @@ async def get_latest_telemetry(limit: int = 10, device_id: str = None):
         return filtered[-limit:]
     
     return telemetry_store[-limit:]
+
+
+@router.get("/track/info")
+async def get_track_info():
+    """Get information about the current track configuration"""
+    return {
+        "name": "Red Bull Ring",
+        "location": "Spielberg, Austria",
+        "length_km": 4.318,
+        "turns": 10,
+        "center": {
+            "latitude": redbull_ring_normalizer.center_lat,
+            "longitude": redbull_ring_normalizer.center_lon
+        },
+        "dimensions": {
+            "width_meters": redbull_ring_normalizer.width,
+            "height_meters": redbull_ring_normalizer.height
+        },
+        "notable_corners": [
+            {"turn": 1, "name": "Castrol Edge"},
+            {"turn": 3, "name": "Remus"},
+            {"turn": 4, "name": "Schlossgold"},
+            {"turn": 7, "name": "Rindt"},
+            {"turn": 9, "name": "Jochen Rindt Kurve"}
+        ]
+    }
 
 
 @router.delete("/telemetry/clear")
