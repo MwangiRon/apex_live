@@ -30,21 +30,55 @@ app.include_router(api_router)
 @app.websocket("/ws/telemetry")
 async def websocket_telemetry(websocket: WebSocket):
     """
-    WebSocket endpoint for real-time telemetry streaming.
-    Frontend connects here to receive live data.
+    WebSocket endpoint for real-time telemetry streaming and race control.
+    Frontend connects here to receive:
+    - Live telemetry data
+    - Flag changes
+    - Session updates
     """
     await manager.connect(websocket)
     
     try:
+        # Send initial connection confirmation
+        await manager.send_personal_message({
+            "type": "connection",
+            "data": {
+                "status": "connected",
+                "message": "WebSocket connection established",
+                "active_connections": manager.get_connection_count()
+            }
+        }, websocket)
+        
+        # Send current session status if available
+        from app.logic.race_controller import race_controller
+        session = race_controller.get_active_session()
+        if session:
+            await manager.send_personal_message({
+                "type": "session_update",
+                "data": session.dict()
+            }, websocket)
+        
         while True:
-            # Keep connection alive (client can send ping messages)
+            # Keep connection alive and handle client messages
             data = await websocket.receive_text()
             
-            # Echo back for debugging
+            # Handle ping/pong
             if data == "ping":
                 await websocket.send_text("pong")
+            
+            # Handle client requests for current state
+            elif data == "get_session":
+                session = race_controller.get_active_session()
+                if session:
+                    await manager.send_personal_message({
+                        "type": "session_update",
+                        "data": session.dict()
+                    }, websocket)
     
     except WebSocketDisconnect:
+        manager.disconnect(websocket)
+    except Exception as e:
+        print(f"WebSocket error: {e}")
         manager.disconnect(websocket)
 
 

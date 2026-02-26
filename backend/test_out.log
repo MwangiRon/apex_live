@@ -1,0 +1,70 @@
+Starting race session...
+Session started
+
+Connecting to WebSocket...
+Connected! Listening for messages...
+
+WebSocket connection established
+   Active connections: 1
+
+Session Update: test-race
+   Cars: 0
+
+
+🎬 Starting flag change sequence...
+
+Triggering: Yellow flag in Sector 2...
+🚩==================================================
+   FLAG CHANGE: YELLOW
+   Sectors: sector_2
+   Message: Debris on track at Turn 4
+=====================================================
+
+Triggering: Double yellow (full course)...
+🚩==================================================
+   FLAG CHANGE: DOUBLE_YELLOW
+   Scope: FULL COURSE
+   Message: Incident ahead - no overtaking
+=====================================================
+
+Triggering: Red flag...
+🚩==================================================
+   FLAG CHANGE: RED
+   Scope: FULL COURSE
+   Message: Session stopped
+=====================================================
+
+Triggering: Green flag (racing resumed)...
+
+ Flag sequence complete!
+🚩==================================================
+   FLAG CHANGE: GREEN
+   Scope: FULL COURSE
+   Message: Track clear - racing resumed
+=====================================================
+
+🚩==================================================
+   FLAG CHANGE: YELLOW
+   Sectors: sector_2
+   Message: Debris on track at Turn 4
+=====================================================
+
+🚩==================================================
+   FLAG CHANGE: DOUBLE_YELLOW
+   Scope: FULL COURSE
+   Message: Incident ahead - no overtaking
+=====================================================
+
+🚩==================================================
+   FLAG CHANGE: RED
+   Scope: FULL COURSE
+   Message: Session stopped
+=====================================================
+
+🚩==================================================
+   FLAG CHANGE: GREEN
+   Scope: FULL COURSE
+   Message: Track clear - racing resumed
+=====================================================
+
+Connection closed

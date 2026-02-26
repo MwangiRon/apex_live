@@ -1,6 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from datetime import datetime
+from app.models.car import Car, F1_TEAMS_2026 as F1_TEAMS
+from app.models.session import SessionState, FlagType, FlagState, TrackSector
+from app.logic.race_controller import race_controller
+from app.logic.sector_manager import sector_manager
+from app.transport.websocket_handler import manager
 
 from app.models import TelemetryData
 from app.logic.coordinate_normalizer import CoordinateNormalizer, redbull_ring_normalizer
@@ -44,6 +49,9 @@ async def receive_telemetry(data: TelemetryData):
     # Keep only last 1000 records to prevent memory issues
     if len(telemetry_store) > 1000:
         telemetry_store.pop(0)
+    
+    # Broadcast telemetry to all connected WebSocket clients
+    await manager.broadcast_telemetry(data.dict())
     
     return data
 
@@ -92,7 +100,181 @@ async def get_track_info():
         ]
     }
 
+# ============= CAR REGISTRATION =============
 
+@router.post("/cars/register", response_model=Car)
+async def register_car(car: Car):
+    """
+    Register a new car in the session.
+    This associates a device_id with driver info and team colors.
+    """
+    # Validate team exists
+    if car.team not in F1_TEAMS:
+        raise HTTPException(status_code=400, detail=f"Unknown team: {car.team}")
+    
+    # Auto-populate team colors if not provided
+    if not car.team_colors:
+        car.team_colors = F1_TEAMS[car.team]
+    
+    # Register with race controller
+    race_controller.register_car(car.device_id)
+    
+    # Store car info (in-memory for now)
+    # TODO: Add to database in future
+    
+    return car
+
+
+@router.get("/cars/teams")
+async def get_available_teams():
+    """Get list of F1 teams with their colors"""
+    return {
+        "teams": {
+            team_id: {
+                "name": colors.name,
+                "primary": colors.primary,
+                "secondary": colors.secondary
+            }
+            for team_id, colors in F1_TEAMS.items()
+        }
+    }
+
+
+# ============= SESSION MANAGEMENT =============
+
+@router.post("/session/start")
+async def start_session(session_id: str, session_type: str = "race"):
+    """
+    Start a new race session.
+    This initializes the race controller with GREEN flag.
+    """
+    session = race_controller.create_session(session_id, session_type)
+    return {
+        "message": "Session started",
+        "session": session
+    }
+
+
+@router.get("/session/status", response_model=SessionState)
+async def get_session_status():
+    """Get current session state including flag status"""
+    session = race_controller.get_active_session()
+    if not session:
+        raise HTTPException(status_code=404, detail="No active session")
+    return session
+
+
+# ============= CAR REGISTRATION =============
+
+@router.post("/cars/register", response_model=Car)
+async def register_car(car: Car):
+    """
+    Register a new car in the session.
+    This associates a device_id with driver info and team colors.
+    """
+    # Validate team exists
+    if car.team not in F1_TEAMS:
+        raise HTTPException(status_code=400, detail=f"Unknown team: {car.team}")
+    
+    # Auto-populate team colors if not provided
+    if not car.team_colors:
+        car.team_colors = F1_TEAMS[car.team]
+    
+    # Register with race controller
+    race_controller.register_car(car.device_id)
+    
+    # Store car info (in-memory for now)
+    # TODO: Add to database in future
+    
+    return car
+
+
+@router.get("/cars/teams")
+async def get_available_teams():
+    """Get list of F1 teams with their colors"""
+    return {
+        "teams": {
+            team_id: {
+                "name": colors.name,
+                "primary": colors.primary,
+                "secondary": colors.secondary
+            }
+            for team_id, colors in F1_TEAMS.items()
+        }
+    }
+
+
+# ============= SESSION MANAGEMENT =============
+
+@router.post("/session/start")
+async def start_session(session_id: str, session_type: str = "race"):
+    """
+    Start a new race session.
+    This initializes the race controller with GREEN flag.
+    """
+    session = race_controller.create_session(session_id, session_type)
+    return {
+        "message": "Session started",
+        "session": session
+    }
+
+
+@router.get("/session/status", response_model=SessionState)
+async def get_session_status():
+    """Get current session state including flag status"""
+    session = race_controller.get_active_session()
+    if not session:
+        raise HTTPException(status_code=404, detail="No active session")
+    return session
+
+
+# ============= FLAG CONTROL =============
+
+from pydantic import BaseModel
+
+class FlagUpdate(BaseModel):
+    flag_type: FlagType
+    full_course: bool = True
+    sectors: list[TrackSector] = None
+    message: str = None
+
+@router.post("/flags/set")
+async def set_flag(flag_update: FlagUpdate):
+    """
+    Change the current flag state.
+    
+    Examples:
+    - Green flag: {"flag_type": "green", "full_course": true}
+    - Yellow in sector 2: {"flag_type": "yellow", "full_course": false, "sectors": ["sector_2"], "message": "Incident at Turn 4"}
+    - Red flag: {"flag_type": "red", "full_course": true, "message": "Session stopped"}
+    """
+    try:
+        flag_state = race_controller.set_flag(
+            flag_type=flag_update.flag_type,
+            full_course=flag_update.full_course,
+            sectors=flag_update.sectors or [],
+            message=flag_update.message
+        )
+        
+        # Broadcast flag change to all connected clients
+        await manager.broadcast_flag_change(flag_state.dict())
+        
+        return {
+            "message": f"{flag_update.flag_type.value.upper()} flag set",
+            "flag_state": flag_state
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/flags/current")
+async def get_current_flag():
+    """Get the current flag status"""
+    flag_state = race_controller.get_flag_status()
+    if not flag_state:
+        raise HTTPException(status_code=404, detail="No active session")
+    return flag_state
+    
 @router.delete("/telemetry/clear")
 async def clear_telemetry():
     """Clear all stored telemetry data (dev/test only)"""

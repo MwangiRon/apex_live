@@ -1,3 +1,3 @@
-from .coordinate_normalizer import CoordinateNormalizer, silverstone_normalizer
+from .coordinate_normalizer import CoordinateNormalizer, redbull_ring_normalizer
 
-__all__ = ["CoordinateNormalizer", "silverstone_normalizer"]
+__all__ = ["CoordinateNormalizer", "redbull_ring_normalizer"]
