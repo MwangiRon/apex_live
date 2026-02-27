@@ -2,17 +2,26 @@ import { useEffect, useRef, useState } from 'react';
 import type { TelemetryData } from '../../types/telemetry.types';
 import type { FlagState } from '../../types/session.types';
 import { FlagType, TrackSector } from '../../types/session.types';
+import type { TrackLayout } from '../../services/api-client';
 
 interface TrackCanvasProps {
   telemetryData: TelemetryData[];
   latestData: TelemetryData | null;
   currentFlag: FlagState | null;
   carColors: Map<string, { primary: string; secondary: string }>;
+  trackLayout: TrackLayout | null;
 }
 
-export function TrackCanvas({ telemetryData, latestData, currentFlag, carColors }: TrackCanvasProps) {
+export function TrackCanvas({ 
+  telemetryData, 
+  latestData, 
+  currentFlag, 
+  carColors,
+  trackLayout 
+}: TrackCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [flashState, setFlashState] = useState(false);
+
 
   // Flash animation for flags
   useEffect(() => {
@@ -46,6 +55,7 @@ export function TrackCanvas({ telemetryData, latestData, currentFlag, carColors 
     };
   }, [currentFlag?.flag_type, currentFlag?.timestamp]);
 
+  //Main drawing effect
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -61,33 +71,25 @@ export function TrackCanvas({ telemetryData, latestData, currentFlag, carColors 
     ctx.fillRect(0, 0, width, height);
 
     // Draw grid
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= 10; i++) {
-      const x = (i / 10) * width;
-      const y = (i / 10) * height;
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, height);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-      ctx.stroke();
-    }
+    drawGrid(ctx, width, height);
 
     // Draw sector boundaries
     drawSectorBoundaries(ctx, width, height);
 
-    // Draw flag state overlays
+    // Draw flag overlays
     if (currentFlag && flashState) {
       drawFlagOverlay(ctx, width, height, currentFlag);
     }
 
-    // Draw track boundary (ghost track)
-    ctx.strokeStyle = 'rgba(0, 210, 255, 0.2)';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(50, 50, width - 100, height - 100);
+    // Draw track layout (NEW - actual track shape)
+    if (trackLayout) {
+      drawTrackLayout(ctx, width, height, trackLayout);
+    } else {
+      // Fallback to simple boundary
+      ctx.strokeStyle = 'rgba(0, 210, 255, 0.2)';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(50, 50, width - 100, height - 100);
+    }
 
     // Group telemetry by device_id
     const telemetryByDevice = new Map<string, TelemetryData[]>();
@@ -110,7 +112,7 @@ export function TrackCanvas({ telemetryData, latestData, currentFlag, carColors 
       }
     });
 
-  }, [telemetryData, latestData, currentFlag, flashState, carColors]);
+  }, [telemetryData, latestData, currentFlag, flashState, carColors,trackLayout]);
 
   function drawSectorBoundaries(ctx: CanvasRenderingContext2D, width: number, height: number) {
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
@@ -178,6 +180,90 @@ export function TrackCanvas({ telemetryData, latestData, currentFlag, carColors 
     }
   }
 
+  function drawGrid(ctx: CanvasRenderingContext2D, width: number, height: number) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 10; i++) {
+      const x = (i / 10) * width;
+      const y = (i / 10) * height;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, height);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+  }
+
+  function drawTrackLayout(
+    ctx: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    layout: TrackLayout
+  ) {
+    if (!layout.waypoints || layout.waypoints.length < 2) return;
+
+    // Draw track outline
+    ctx.strokeStyle = 'rgba(0, 210, 255, 0.4)';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+
+    layout.waypoints.forEach((waypoint, index) => {
+      const x = (waypoint.normalized.x / 1000) * width;
+      const y = (waypoint.normalized.y / 1000) * height;
+
+      if (index === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    });
+
+    ctx.closePath();
+    ctx.stroke();
+
+    // Draw corner markers
+    ctx.fillStyle = 'rgba(0, 210, 255, 0.6)';
+    ctx.font = '10px Inter';
+    
+    layout.waypoints.forEach((waypoint, index) => {
+      if (index === 0 || index === layout.waypoints.length - 1) return;
+
+      const x = (waypoint.normalized.x / 1000) * width;
+      const y = (waypoint.normalized.y / 1000) * height;
+
+      // Corner dot
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Corner label
+      const turnNumber = index;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.fillText(`T${turnNumber}`, x + 8, y - 8);
+      ctx.fillStyle = 'rgba(0, 210, 255, 0.6)';
+    });
+
+    // Draw start/finish line
+    const startPoint = layout.waypoints[0];
+    const sx = (startPoint.normalized.x / 1000) * width;
+    const sy = (startPoint.normalized.y / 1000) * height;
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([10, 5]);
+    ctx.beginPath();
+    ctx.moveTo(sx - 15, sy);
+    ctx.lineTo(sx + 15, sy);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 11px Inter';
+    ctx.fillText('START', sx + 20, sy + 4);
+  }
   function getSectorBounds(sector: TrackSector, width: number, height: number) {
     switch (sector) {
       case TrackSector.SECTOR_1:
