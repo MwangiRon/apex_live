@@ -31,39 +31,84 @@ TEST_CARS = [
     }
 ]
 
-# Red Bull Ring track simulation
-TRACK_CENTER_LAT = 47.2197
-TRACK_CENTER_LON = 14.7647
-TRACK_RADIUS = 0.01  # Approximate track radius in degrees
+def fetch_track_layout():
+    """Get Red Bull Ring waypoints from backend"""
+    try:
+        response = requests.get(f"{API_URL}/track/layout")
+        if response.status_code == 200:
+            data = response.json()
+            return data["waypoints"]
+    except Exception as e:
+        print(f"[ERROR] Failed to fetch track layout: {e}")
+    return None
 
-def generate_track_position(angle_degrees, offset_radius=0):
-    """Generate GPS coordinates around Red Bull Ring circuit"""
-    angle_rad = math.radians(angle_degrees)
-    radius = TRACK_RADIUS + offset_radius
+def interpolate_position(waypoints, lap_progress):
+    """Interpolate GPS position along track waypoints"""
+    if not waypoints or len(waypoints) < 2:
+        angle_rad = lap_progress * 2 * math.pi
+        lat = 47.2197 + 0.01 * math.cos(angle_rad)
+        lon = 14.7647 + 0.01 * math.sin(angle_rad)
+        return lat, lon
     
-    lat = TRACK_CENTER_LAT + radius * math.cos(angle_rad)
-    lon = TRACK_CENTER_LON + radius * math.sin(angle_rad)
+    total_segments = len(waypoints) - 1
+    segment_progress = lap_progress * total_segments
+    segment_index = int(segment_progress)
+    
+    if segment_index >= total_segments:
+        segment_index = total_segments - 1
+        local_progress = 1.0
+    else:
+        local_progress = segment_progress - segment_index
+    
+    wp1 = waypoints[segment_index]
+    wp2 = waypoints[(segment_index + 1) % len(waypoints)]
+    
+    lat = wp1["gps"]["latitude"] + (wp2["gps"]["latitude"] - wp1["gps"]["latitude"]) * local_progress
+    lon = wp1["gps"]["longitude"] + (wp2["gps"]["longitude"] - wp1["gps"]["longitude"]) * local_progress
     
     return lat, lon
 
-def generate_telemetry(car, lap_progress, speed_factor=1.0):
-    """Generate realistic telemetry for a car at a given lap progress"""
+def calculate_heading(waypoints, lap_progress):
+    """Calculate heading based on track direction"""
+    if not waypoints or len(waypoints) < 2:
+        return (lap_progress * 360) % 360
     
-    # Calculate position on track (0-360 degrees)
-    angle = lap_progress * 360
+    total_segments = len(waypoints) - 1
+    segment_progress = lap_progress * total_segments
+    segment_index = int(segment_progress) % total_segments
     
-    # Add small offset per car to simulate racing line differences
-    car_offset = (car["car_number"] % 3) * 0.001
-    lat, lon = generate_track_position(angle, car_offset)
+    wp1 = waypoints[segment_index]
+    wp2 = waypoints[(segment_index + 1) % len(waypoints)]
+    
+    lat1 = math.radians(wp1["gps"]["latitude"])
+    lon1 = math.radians(wp1["gps"]["longitude"])
+    lat2 = math.radians(wp2["gps"]["latitude"])
+    lon2 = math.radians(wp2["gps"]["longitude"])
+    
+    dLon = lon2 - lon1
+    y = math.sin(dLon) * math.cos(lat2)
+    x = math.cos(lat1) * math.sin(lat2) - math.sin(lat1) * math.cos(lat2) * math.cos(dLon)
+    bearing = math.atan2(y, x)
+    
+    return (math.degrees(bearing) + 360) % 360
+
+def generate_telemetry(car, lap_progress, waypoints, speed_factor=1.0):
+    """Generate realistic telemetry for a car following actual track layout"""
+    
+    # Get position from track waypoints
+    lat, lon = interpolate_position(waypoints, lap_progress)
     
     # Simulate speed variations (slower in corners)
-    corner_slowdown = abs(math.sin(math.radians(angle * 4))) * 0.3
+    corner_slowdown = abs(math.sin(lap_progress * 12 * math.pi)) * 0.4  # More corner variation
     base_speed = 250 * speed_factor
     speed = base_speed * (1 - corner_slowdown)
     
     # Simulate G-forces
-    acceleration_x = math.sin(math.radians(angle * 3)) * 2.5
-    acceleration_y = math.cos(math.radians(angle * 2)) * 2.0
+    acceleration_x = math.sin(lap_progress * 10 * math.pi) * 2.8
+    acceleration_y = math.cos(lap_progress * 8 * math.pi) * 2.2
+    
+    # Get realistic heading from track direction
+    heading = calculate_heading(waypoints, lap_progress)
     
     # Engine temperature varies with speed
     engine_temp = 85 + (speed / 250) * 15
@@ -80,7 +125,7 @@ def generate_telemetry(car, lap_progress, speed_factor=1.0):
             "acceleration_x": acceleration_x,
             "acceleration_y": acceleration_y,
             "acceleration_z": -0.2,
-            "heading": angle % 360
+            "heading": heading
         },
         "sensors": {
             "temperature_engine": engine_temp,
@@ -116,8 +161,8 @@ def start_session():
     
     print("\n[3/3] Starting telemetry stream...\n")
 
-def run_simulation(duration_seconds=60):
-    """Run multi-car simulation"""
+def run_simulation(duration_seconds=60, waypoints=None):
+    """Run multi-car simulation following track layout"""
     start_time = time.time()
     lap_progress = [0.0, 0.15, 0.3]  # Stagger car positions
     
@@ -127,22 +172,22 @@ def run_simulation(duration_seconds=60):
         iteration += 1
         
         for i, car in enumerate(TEST_CARS):
-            # Update lap progress (car 01 is fastest)
             speed_multiplier = 1.0 + (i * 0.05)
             lap_progress[i] = (lap_progress[i] + 0.005 * speed_multiplier) % 1.0
             
-            # Generate and send telemetry
-            telemetry = generate_telemetry(car, lap_progress[i], speed_multiplier)
+            # Generate telemetry with waypoints
+            telemetry = generate_telemetry(car, lap_progress[i], waypoints, speed_multiplier)
             
             try:
                 response = requests.post(f"{API_URL}/telemetry", json=telemetry)
                 if response.status_code == 200:
-                    print(f"[T+{iteration:03d}] {car['driver_name']}: {telemetry['motion']['speed']:.1f} km/h at sector {int(lap_progress[i] * 3) + 1}")
+                    sector = int(lap_progress[i] * 3) + 1
+                    print(f"[T+{iteration:03d}] {car['driver_name']}: {telemetry['motion']['speed']:.1f} km/h | Sector {sector}")
             except Exception as e:
                 print(f"Error sending telemetry: {e}")
         
-        print()  # Blank line between iterations
-        time.sleep(0.5)  # Send updates every 500ms
+        print()
+        time.sleep(0.5)
 
 def trigger_flag_scenario():
     """Trigger a flag scenario during simulation"""
@@ -182,12 +227,21 @@ if __name__ == "__main__":
     try:
         start_session()
         
+        # Fetch track layout
+        print("\n[TRACK] Fetching Red Bull Ring layout...")
+        waypoints = fetch_track_layout()
+        
+        if waypoints:
+            print(f"[SUCCESS] Track layout loaded with {len(waypoints)} waypoints\n")
+        else:
+            print("[WARNING] Using fallback circular pattern\n")
+        
         # Start flag scenario in background
         flag_thread = threading.Thread(target=trigger_flag_scenario, daemon=True)
         flag_thread.start()
         
-        # Run simulation
-        run_simulation(duration_seconds=30)
+        # Run simulation with track layout
+        run_simulation(duration_seconds=30, waypoints=waypoints)
         
         print("\n" + "=" * 60)
         print("SIMULATION COMPLETE")
