@@ -100,6 +100,35 @@ async def get_track_info():
         ]
     }
 
+@router.get("/track/layout")
+async def get_track_layout():
+    """Get track waypoints for visualization"""
+    from app.logic.coordinate_normalizer import RED_BULL_RING_WAYPOINTS, redbull_ring_normalizer
+    
+    waypoints_normalized = []
+    for waypoint in RED_BULL_RING_WAYPOINTS:
+        norm_x, norm_y = redbull_ring_normalizer.normalize(
+            waypoint.lat,
+            waypoint.lon
+        )
+        waypoints_normalized.append({
+            "name": waypoint.name,
+            "gps": {
+                "latitude": waypoint.lat,
+                "longitude": waypoint.lon
+            },
+            "normalized": {
+                "x": norm_x,
+                "y": norm_y
+            }
+        })
+    
+    return {
+        "track_name": "Red Bull Ring",
+        "waypoints": waypoints_normalized,
+        "total_corners": 10
+    }
+    
 # ============= CAR REGISTRATION =============
 
 @router.post("/cars/register", response_model=Car)
