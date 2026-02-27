@@ -11,11 +11,12 @@ import { useTrackInfo } from '../../hooks/useTrackInfo';
 import { Header } from './Header';
 import type { Car } from '../../types/car.types';
 import type { TelemetryData } from '../../types/telemetry.types';
+import { useTrackLayout } from '../../hooks/useTrackLayout';
 
 export function Dashboard() {
   const { telemetryHistory, latestData, isConnected, currentFlag, sessionState } = useTelemetry(200);
   const { trackInfo, loading: trackLoading } = useTrackInfo();
-  
+  const { trackLayout, loading: trackLayoutLoading } = useTrackLayout();
   const [registeredCars, setRegisteredCars] = useState<Map<string, Car>>(new Map());
   const [latestTelemetryByDevice, setLatestTelemetryByDevice] = useState<Map<string, TelemetryData>>(new Map());
   const [carColors, setCarColors] = useState<Map<string, { primary: string; secondary: string }>>(new Map());
@@ -71,16 +72,16 @@ export function Dashboard() {
     });
   }, [sessionState, registeredCars]);
 
-  if (trackLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-nitrous border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <div className="data-mono text-gray-400">INITIALIZING SYSTEMS...</div>
-        </div>
+ if (trackLoading || trackLayoutLoading) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-nitrous border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <div className="data-mono text-gray-400">INITIALIZING SYSTEMS...</div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <div className="min-h-screen bg-asphalt">
@@ -119,11 +120,12 @@ export function Dashboard() {
                 </div>
               </div>
               <TrackCanvas 
-                telemetryData={telemetryHistory} 
-                latestData={latestData}
-                currentFlag={currentFlag}
-                carColors={carColors}
-              />
+  telemetryData={telemetryHistory} 
+  latestData={latestData}
+  currentFlag={currentFlag}
+  carColors={carColors}
+  trackLayout={trackLayout}
+/>
             </div>
           </div>
 

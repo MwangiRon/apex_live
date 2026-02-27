@@ -264,6 +264,7 @@ export function TrackCanvas({
     ctx.font = 'bold 11px Inter';
     ctx.fillText('START', sx + 20, sy + 4);
   }
+
   function getSectorBounds(sector: TrackSector, width: number, height: number) {
     switch (sector) {
       case TrackSector.SECTOR_1:
